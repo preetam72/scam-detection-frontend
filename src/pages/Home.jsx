@@ -26,12 +26,17 @@ export default function Home() {
       body: JSON.stringify({ message: scanContent }),
     });
 
-    const data = await response.json(); // ✅ always parse
+    const data = await response.json();
+
+    // If backend returned an error status, still parse the result for display
+    if (!response.ok) {
+      console.warn("Backend returned error status:", response.status, data);
+    }
 
     const resultText = data.result || "";
 
     const probabilityMatch = resultText.match(/Scam Probability:\s*(\d+)%/i);
-    const riskMatch = resultText.match(/Risk Level:\s*(Low|Medium|High)/i);
+    const riskMatch = resultText.match(/Risk Level:\s*(Low|Medium|High|Error)/i);
     const typeMatch = resultText.match(/Scam Type:\s*(.*)/i);
     const explanationMatch = resultText.match(/Explanation:\s*(.*)/i);
 
@@ -49,7 +54,7 @@ export default function Home() {
       probability: probabilityMatch ? parseInt(probabilityMatch[1]) : 50,
       riskLevel: riskMatch ? riskMatch[1] : "Medium",
       scamType: typeMatch ? typeMatch[1].trim() : "Unknown",
-      analysis: explanationMatch ? explanationMatch[1].trim() : "Fallback analysis",
+      analysis: explanationMatch ? explanationMatch[1].trim() : "Analysis unavailable",
       indicators,
       recommendations: [],
     };
@@ -76,7 +81,8 @@ export default function Home() {
         initialResult: {
           probability: 0,
           riskLevel: "Error",
-          analysis: "⚠️ System failed. Try again.",
+          scamType: "Error",
+          analysis: `⚠️ Could not connect to scanner: ${error?.message || "Network error"}`,
           indicators: [],
         },
       },
