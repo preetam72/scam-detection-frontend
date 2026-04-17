@@ -7,11 +7,9 @@ import {
   ArrowRight,
   Calendar
 } from 'lucide-react';
-import { useOutletContext } from 'react-router-dom';
 import { dbService } from '../lib/db';
 
 export default function ReportScam() {
-  const { requireAuth, currentUser } = useOutletContext();
   const [formData, setFormData] = useState({ 
     platform: '', 
     datetime: '',
@@ -27,11 +25,12 @@ export default function ReportScam() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const startSubmitProcess = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setIsSubmitting(true);
     
     try {
-      await dbService.saveUserReport(formData, currentUser);
+      await dbService.saveUserReport(formData);
       setIsSuccess(true);
       setTimeout(() => setIsSuccess(false), 4000);
       setFormData({ 
@@ -43,11 +42,6 @@ export default function ReportScam() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleSubmit = (e) => {
-    if (e) e.preventDefault();
-    requireAuth(() => startSubmitProcess());
   };
 
   return (
