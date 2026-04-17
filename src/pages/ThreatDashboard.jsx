@@ -1,21 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Network, Activity, Users, ShieldAlert, ShieldCheck, Mail, MessageSquare, Phone, Globe, ShoppingCart, Plus, ArrowUpRight, TrendingUp, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { dbService } from '../lib/db';
 
 export default function ThreatDashboard() {
-  const [liveFeed] = useState([
-    { id: 1, platform: 'Email', title: 'Netflix Billing Error Phishing', risk: 'Critical' },
-    { id: 2, platform: 'SMS', title: 'USPS Redelivery Link', risk: 'High Risk' },
-    { id: 3, platform: 'Voice', title: 'Amazon Support Vishing', risk: 'High Risk' },
-    { id: 4, platform: 'Social Media', title: 'Crypto Giveaway Fraud', risk: 'Critical' },
-    { id: 5, platform: 'E-commerce', title: 'Fake Marketplace Listing', risk: 'Medium' },
-  ]);
+  const [liveFeed, setLiveFeed] = useState([]);
+  const [reportedScams, setReportedScams] = useState([]);
 
-  const reportedScams = [
-    { id: 'RS-901', date: 'Oct 24, 2024', type: 'SMS Phishing', status: 'Under Review' },
-    { id: 'RS-892', date: 'Oct 23, 2024', type: 'Email Fraud', status: 'Confirmed' },
-    { id: 'RS-877', date: 'Oct 20, 2024', type: 'Social Media', status: 'Resolved' },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      const analytics = await dbService.getDashboardAnalytics();
+      
+      // Map global feed format
+      setLiveFeed(analytics.recentScams.map(s => ({
+        id: s.id,
+        platform: s.platform === 'Unknown' ? 'Email' : s.platform, // fallback
+        title: s.type, // use type as title
+        risk: s.risk === 'High' ? 'Critical' : s.risk === 'Low' ? 'Low Risk' : s.risk
+      })));
+
+      const userRpts = await dbService.getUserReports();
+      const userScns = await dbService.getScanHistory();
+
+      const combined = [
+        ...userRpts.map(r => ({
+          id: r.id,
+          timestamp: r.timestamp,
+          date: new Date(r.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          type: r.platform === 'SMS' ? 'SMS Phishing' : 'General Fraud',
+          status: 'Under Review'
+        })),
+        ...userScns.map(s => ({
+          id: s.id,
+          timestamp: s.timestamp,
+          date: new Date(s.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          type: s.type,
+          status: s.risk === 'High' ? 'Resolved' : s.risk === 'Medium' ? 'Medium' : 'Confirmed'
+        }))
+      ];
+
+      // Sort recent first
+      combined.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+      setReportedScams(combined.slice(0, 10));
+    };
+    fetchData();
+  }, []);
 
   const getRiskColor = (status) => {
     if (status.includes('Critical') || status.includes('High') || status.includes('Dangerous') || status === 'Confirmed') return 'var(--status-danger)';

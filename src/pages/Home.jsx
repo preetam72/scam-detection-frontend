@@ -1,96 +1,94 @@
 import { useState } from 'react';
 import { Shield, Search, Lock, Zap, Clock, AlertTriangle, ShieldCheck, Play, ArrowRight, Activity, Mail, MessageSquare, Globe, Hash } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { dbService } from '../lib/db';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('SMS');
   const [scanContent, setScanContent] = useState('');
   const navigate = useNavigate();
+  const { requireAuth, currentUser } = useOutletContext();
 
   const [isScanning, setIsScanning] = useState(false);
 
- const handleScan = async (e) => {
-  e.preventDefault();
+  const startScanProcess = async () => {
+    if (!scanContent.trim() || isScanning) return;
 
-  if (!scanContent.trim() || isScanning) return;
+    setIsScanning(true);
 
-  setIsScanning(true);
-
-  try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/scan`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message: scanContent }),
-    });
-
-    const data = await response.json();
-
-    // If backend returned an error status, still parse the result for display
-    if (!response.ok) {
-      console.warn("Backend returned error status:", response.status, data);
-    }
-
-    const resultText = data.result || "";
-
-    const probabilityMatch = resultText.match(/Scam Probability:\s*(\d+)%/i);
-    const riskMatch = resultText.match(/Risk Level:\s*(Low|Medium|High|Error)/i);
-    const typeMatch = resultText.match(/Scam Type:\s*(.*)/i);
-    const explanationMatch = resultText.match(/Explanation:\s*(.*)/i);
-
-    const indicatorsMatch = resultText.match(/Indicators:\s*([\s\S]*)/i);
-
-    let indicators = [];
-    if (indicatorsMatch && indicatorsMatch[1]) {
-      indicators = indicatorsMatch[1]
-        .split("\n")
-        .map((line) => line.replace(/^-\s*/, "").trim())
-        .filter((line) => line.length > 0);
-    }
-
-    const parsedResult = {
-      probability: probabilityMatch ? parseInt(probabilityMatch[1]) : 50,
-      riskLevel: riskMatch ? riskMatch[1] : "Medium",
-      scamType: typeMatch ? typeMatch[1].trim() : "Unknown",
-      analysis: explanationMatch ? explanationMatch[1].trim() : "Analysis unavailable",
-      indicators,
-      recommendations: [],
-    };
-
-    await dbService.saveScanResult({
-      contentAnalyzed: scanContent,
-      ...parsedResult,
-    });
-
-    navigate("/scan", {
-      state: {
-        contentToScan: scanContent,
-        platformChannel: activeTab,
-        initialResult: parsedResult,
-      },
-    });
-  } catch (error) {
-    console.error("Frontend Error:", error);
-
-    navigate("/scan", {
-      state: {
-        contentToScan: scanContent,
-        platformChannel: activeTab,
-        initialResult: {
-          probability: 0,
-          riskLevel: "Error",
-          scamType: "Error",
-          analysis: `⚠️ Could not connect to scanner: ${error?.message || "Network error"}`,
-          indicators: [],
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/scan`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      },
-    });
-  } finally {
-    setIsScanning(false);
-  }
-};
+        body: JSON.stringify({ message: scanContent }),
+      });
+
+      const data = await response.json();
+      const resultText = data.result || "";
+
+      const probabilityMatch = resultText.match(/Scam Probability:\s*(\d+)%/i);
+      const riskMatch = resultText.match(/Risk Level:\s*(Low|Medium|High|Error)/i);
+      const typeMatch = resultText.match(/Scam Type:\s*(.*)/i);
+      const explanationMatch = resultText.match(/Explanation:\s*(.*)/i);
+      const indicatorsMatch = resultText.match(/Indicators:\s*([\s\S]*)/i);
+
+      let indicators = [];
+      if (indicatorsMatch && indicatorsMatch[1]) {
+        indicators = indicatorsMatch[1]
+          .split("\n")
+          .map((line) => line.replace(/^-\s*/, "").trim())
+          .filter((line) => line.length > 0);
+      }
+
+      const parsedResult = {
+        probability: probabilityMatch ? parseInt(probabilityMatch[1]) : 50,
+        riskLevel: riskMatch ? riskMatch[1] : "Medium",
+        scamType: typeMatch ? typeMatch[1].trim() : "Unknown",
+        analysis: explanationMatch ? explanationMatch[1].trim() : "Analysis unavailable",
+        indicators,
+        recommendations: [],
+      };
+
+      // Save to local DB with current user identity
+      await dbService.saveScanResult({
+        contentAnalyzed: scanContent,
+        ...parsedResult,
+      }, currentUser);
+
+      navigate("/scan", {
+        state: {
+          contentToScan: scanContent,
+          platformChannel: activeTab,
+          initialResult: parsedResult,
+        },
+      });
+    } catch (error) {
+      console.error("Frontend Error:", error);
+
+      navigate("/scan", {
+        state: {
+          contentToScan: scanContent,
+          platformChannel: activeTab,
+          initialResult: {
+            probability: 0,
+            riskLevel: "Error",
+            scamType: "Error",
+            analysis: `⚠️ Could not connect to scanner: ${error?.message || "Network error"}`,
+            indicators: [],
+          },
+        },
+      });
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleScan = (e) => {
+    if (e) e.preventDefault();
+    requireAuth(() => startScanProcess());
+  };
 
   const handleSampleTest = (sampleText) => {
     setScanContent(sampleText);

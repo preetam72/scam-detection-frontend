@@ -28,23 +28,27 @@ initStorage();
 
 export const dbService = {
   // Save a scanned result
-  saveScanResult: async (scanData) => {
+  saveScanResult: async (scanData, userData) => {
     return new Promise((resolve) => {
       setTimeout(() => {
         const scams = JSON.parse(localStorage.getItem(STORAGE_KEY_SCAMS) || '[]');
         
         // Extract basic keywords for dummy analytics
-        const words = scanData.contentAnalyzed.toLowerCase().split(/\s+/);
+        const words = (scanData.contentAnalyzed || "").toLowerCase().split(/\s+/);
         const keywords = words.filter(w => w.length > 4 && !['https', 'http', 'www'].includes(w)).slice(0, 3);
         
         const newRecord = {
-          id: `SCM-${Math.floor(Math.random() * 10000)}`,
+          id: Date.now(),
+          userEmail: userData?.email || 'anonymous',
+          userName: userData?.name || 'Anonymous User',
+          createdAt: new Date().toISOString(),
           type: scanData.scamType || 'Unknown',
           platform: scanData.platformContext || 'Unknown',
           risk: scanData.riskLevel,
           probability: scanData.probability,
-          timestamp: new Date().toISOString(),
-          keywords: keywords
+          timestamp: new Date().toISOString(), // Keep legacy timestamp for compatibility if needed
+          keywords: keywords,
+          payload: scanData // Include actual data payload as requested
         };
         
         scams.unshift(newRecord); // Add to beginning
@@ -55,19 +59,42 @@ export const dbService = {
   },
 
   // Save a user manual report
-  saveUserReport: async (reportData) => {
+  saveUserReport: async (reportData, userData) => {
     return new Promise((resolve) => {
       setTimeout(() => {
         const reports = JSON.parse(localStorage.getItem(STORAGE_KEY_REPORTS) || '[]');
         const newReport = {
-          id: `RPT-${Math.floor(Math.random() * 10000)}`,
+          id: Date.now(),
+          userEmail: userData?.email || 'anonymous',
+          userName: userData?.name || 'Anonymous User',
+          createdAt: new Date().toISOString(),
           ...reportData,
-          timestamp: new Date().toISOString()
+          payload: reportData // Include actual data payload
         };
         reports.unshift(newReport);
         localStorage.setItem(STORAGE_KEY_REPORTS, JSON.stringify(reports));
         resolve(newReport);
       }, 600);
+    });
+  },
+
+  // Get User Reports
+  getUserReports: async () => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const reports = JSON.parse(localStorage.getItem(STORAGE_KEY_REPORTS) || '[]');
+        resolve(reports);
+      }, 300);
+    });
+  },
+
+  // Get Scan History
+  getScanHistory: async () => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const scans = JSON.parse(localStorage.getItem(STORAGE_KEY_SCAMS) || '[]');
+        resolve(scans);
+      }, 300);
     });
   },
 

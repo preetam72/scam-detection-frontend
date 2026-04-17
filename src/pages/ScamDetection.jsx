@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
   Download, Share2, Activity, CheckCircle2, AlertCircle, Link2Off,
   AlertTriangle, Shield, XSquare, Ban, MessageSquareWarning, Code,
@@ -9,6 +9,7 @@ import {
 export default function ScamDetection() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { requireAuth } = useOutletContext();
   const initialContent = location.state?.contentToScan || '';
   const initialPlatform = location.state?.platformChannel || 'Unknown';
   const result = location.state?.initialResult || null;
@@ -103,10 +104,16 @@ export default function ScamDetection() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginTop: '0.5rem' }}>
-            <button style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', background: '#fff', color: '#374151', border: '1px solid #E5E7EB', padding: '0.55rem 1.2rem', borderRadius: '8px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer' }}>
+            <button 
+              onClick={() => requireAuth(() => alert('Exporting report...'))}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', background: '#fff', color: '#374151', border: '1px solid #E5E7EB', padding: '0.55rem 1.2rem', borderRadius: '8px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer' }}
+            >
               <Download size={15} /> Export
             </button>
-            <button style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', background: '#FF6B00', color: '#fff', border: 'none', padding: '0.55rem 1.2rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(255,107,0,0.3)' }}>
+            <button 
+              onClick={() => requireAuth(() => alert('Opening share dialog...'))}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', background: '#FF6B00', color: '#fff', border: 'none', padding: '0.55rem 1.2rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(255,107,0,0.3)' }}
+            >
               <Share2 size={15} /> Share
             </button>
           </div>
