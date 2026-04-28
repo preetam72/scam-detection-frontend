@@ -25,12 +25,17 @@ export default function ScamDetection() {
   const riskBg   = isLow ? '#ECFDF5' : isMedium ? '#FFFBEB' : '#FEF2F2';
   const riskLabel = isHigh ? 'CRITICAL' : isMedium ? 'SUSPICIOUS' : 'SAFE';
 
-  const reportId = `#VX-${Math.floor(10000 + Math.random() * 90000)}`;
-  const scanTime = new Date().toLocaleString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    timeZoneName: 'short'
-  });
+  const [reportId, setReportId] = React.useState('');
+  const [scanTime, setScanTime] = React.useState('');
+
+  React.useEffect(() => {
+    setReportId(`#VX-${Math.floor(10000 + Math.random() * 90000)}`);
+    setScanTime(new Date().toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      timeZoneName: 'short'
+    }));
+  }, []);
 
   const highlightIndicators = (text, indicators) => {
     if (!indicators?.length) return text;
