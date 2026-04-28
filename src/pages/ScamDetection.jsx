@@ -118,7 +118,7 @@ export default function ScamDetection() {
         </div>
 
         {/* ── Row 1: Threat Score + Technical Breakdown ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,2fr)', gap: '1.25rem', marginBottom: '1.25rem' }}>
+        <div className="grid-responsive-dynamic" style={{ marginBottom: '1.25rem' }}>
 
           {/* Threat Score Card */}
           <div style={{ background: '#fff', borderRadius: '16px', padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', position: 'relative' }}>
@@ -171,7 +171,7 @@ export default function ScamDetection() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="grid-responsive-dynamic" style={{ gap: '1rem' }}>
               {[
                 {
                   label: 'AI HEURISTICS',
@@ -237,7 +237,7 @@ export default function ScamDetection() {
         </div>
 
         {/* ── Row 3: Remediation Path + Analyzed Payload ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '1.25rem' }}>
+        <div className="grid-responsive-2" style={{ gap: '1.25rem' }}>
 
           {/* Remediation Path */}
           <div style={{ background: '#1A1A1A', borderRadius: '16px', padding: '2rem', color: '#fff', display: 'flex', flexDirection: 'column' }}>
