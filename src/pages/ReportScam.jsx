@@ -5,7 +5,8 @@ import {
   Link as LinkIcon,
   UploadCloud,
   ArrowRight,
-  Calendar
+  Calendar,
+  Sparkles
 } from 'lucide-react';
 import { dbService } from '../lib/db';
 
@@ -24,6 +25,67 @@ export default function ReportScam() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const [autoFillText, setAutoFillText] = useState('');
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+  const [autoFillError, setAutoFillError] = useState('');
+
+  const handleAutoFill = async () => {
+    if (!autoFillText.trim() || isAutoFilling) return;
+    
+    setIsAutoFilling(true);
+    setAutoFillError('');
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/extract-report`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ rawText: autoFillText }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to extract details");
+      }
+      
+      const data = await response.json();
+      
+      let platformVal = '';
+      if (data.platform) {
+        const lowerPlat = data.platform.toLowerCase();
+        if (lowerPlat.includes('sms') || lowerPlat.includes('text')) platformVal = 'SMS';
+        else if (lowerPlat.includes('email')) platformVal = 'Email';
+        else if (lowerPlat.includes('social')) platformVal = 'SocialMedia';
+        else if (lowerPlat.includes('website') || lowerPlat.includes('url')) platformVal = 'Website';
+        else platformVal = 'Other';
+      }
+      
+      let priorityVal = 'Medium';
+      if (data.priority) {
+        const lowerPri = data.priority.toLowerCase();
+        if (lowerPri.includes('low')) priorityVal = 'Low';
+        else if (lowerPri.includes('high') || lowerPri.includes('critical')) priorityVal = 'High';
+        else priorityVal = 'Medium';
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        platform: platformVal || prev.platform,
+        priority: priorityVal || prev.priority,
+        link: data.link || prev.link,
+        message: data.message || prev.message,
+        datetime: new Date().toISOString().slice(0, 16)
+      }));
+      
+      setAutoFillText('');
+    } catch (err) {
+      console.error(err);
+      setAutoFillError('⚠️ AI Extraction failed. Please fill manually.');
+    } finally {
+      setIsAutoFilling(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -121,6 +183,39 @@ export default function ReportScam() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              
+              {/* AI Smart Auto-Fill Card */}
+              <div style={{ background: '#FFF3EB', border: '1px solid rgba(255, 107, 0, 0.2)', borderRadius: '12px', padding: '1.5rem', marginBottom: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#FF6B00', fontWeight: 800, fontSize: '0.9rem', marginBottom: '0.75rem' }}>
+                  <Sparkles size={16} />
+                  <span>🤖 AI Smart Auto-Fill</span>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', lineHeight: 1.4, marginBottom: '1rem', textAlign: 'left' }}>
+                  Paste the raw spam message or email copy below, and our AI will automatically parse the platform, link, and threat level for you!
+                </p>
+                <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column' }}>
+                  <textarea
+                    placeholder="Paste raw scam text here..."
+                    rows={3}
+                    value={autoFillText}
+                    onChange={(e) => setAutoFillText(e.target.value)}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', resize: 'none', fontSize: '0.9rem', outline: 'none', background: '#FFF', fontFamily: 'inherit' }}
+                    disabled={isAutoFilling}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAutoFill}
+                    className="btn btn-primary"
+                    style={{ padding: '0.75rem 1rem', fontSize: '0.85rem', width: '100%', borderRadius: '8px' }}
+                    disabled={!autoFillText.trim() || isAutoFilling}
+                  >
+                    {isAutoFilling ? '🤖 Extracting details...' : '🤖 Auto-Fill Form'}
+                  </button>
+                  {autoFillError && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--status-danger)', fontWeight: 600, textAlign: 'left' }}>{autoFillError}</span>
+                  )}
+                </div>
+              </div>
               
               {/* Row 1 */}
               <div>

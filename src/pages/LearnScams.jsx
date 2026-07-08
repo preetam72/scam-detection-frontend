@@ -1,10 +1,65 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Shield, Mail, Phone, Bitcoin, MessageSquare, BrainCircuit, 
   ArrowRight, Clock, Eye, AlertTriangle, PlayCircle
 } from 'lucide-react';
 
 export default function LearnScams() {
+  const [quizStarted, setQuizStarted] = useState(false);
+  const [currentScenario, setCurrentScenario] = useState(null);
+  const [isLoadingScenario, setIsLoadingScenario] = useState(false);
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [hasAnswered, setHasAnswered] = useState(false);
+  const [score, setScore] = useState({ correct: 0, total: 0 });
+
+  const loadNewScenario = async () => {
+    setIsLoadingScenario(true);
+    setSelectedAnswer(null);
+    setHasAnswered(false);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/generate-scenario`);
+      if (!response.ok) throw new Error('Failed to fetch');
+      const data = await response.json();
+      setCurrentScenario(data);
+    } catch (e) {
+      console.error(e);
+      // fallback
+      setCurrentScenario({
+        type: 'SMS',
+        content: 'URGENT: Your bank account OTP is 928301 for a payment of $1200. If you did not make this transaction, click to cancel: http://cancel-sbi-trans.com',
+        isScam: true,
+        scamType: 'OTP Phishing',
+        explanation: 'Uses a mock transaction warning to induce panic and redirects to a fraudulent credentials harvester.',
+        redFlags: ['Requests cancellation via link', 'Unofficial domains', 'Fake transaction trigger']
+      });
+    } finally {
+      setIsLoadingScenario(false);
+    }
+  };
+
+  const handleAnswer = (choice) => {
+    if (hasAnswered) return;
+    setSelectedAnswer(choice);
+    setHasAnswered(true);
+    const isChoiceScam = choice === 'scam';
+    const isCorrect = isChoiceScam === currentScenario.isScam;
+    setScore((prev) => ({
+      correct: prev.correct + (isCorrect ? 1 : 0),
+      total: prev.total + 1
+    }));
+  };
+
+  const startQuiz = () => {
+    setQuizStarted(true);
+    loadNewScenario();
+  };
+
+  const resetQuiz = () => {
+    setQuizStarted(false);
+    setCurrentScenario(null);
+    setScore({ correct: 0, total: 0 });
+  };
+
   return (
     <div style={{ background: '#FAFAFA', minHeight: '100vh', paddingBottom: '6rem' }}>
       
@@ -266,48 +321,158 @@ export default function LearnScams() {
         <div style={{ 
           background: '#111111', 
           borderRadius: '32px', 
-          padding: '6rem 2rem', 
+          padding: quizStarted ? '4rem 2rem' : '6rem 2rem', 
           textAlign: 'center',
           position: 'relative',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
+          transition: 'all 0.3s ease'
         }}>
           {/* Background Dotted subtle pattern */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.1, backgroundImage: 'radial-gradient(#FF6B00 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
 
-          <div style={{ position: 'relative', zIndex: 1, maxWidth: '700px' }}>
-            <div style={{ background: 'rgba(255, 107, 0, 0.1)', color: '#FF6B00', border: '1px solid rgba(255, 107, 0, 0.2)', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', textTransform: 'uppercase' }}>
-               <Shield size={14} /> KNOWLEDGE ASSESSMENT
-            </div>
+          {!quizStarted ? (
+            <div style={{ position: 'relative', zIndex: 1, maxWidth: '700px' }}>
+              <div style={{ background: 'rgba(255, 107, 0, 0.1)', color: '#FF6B00', border: '1px solid rgba(255, 107, 0, 0.2)', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', textTransform: 'uppercase' }}>
+                 <Shield size={14} /> KNOWLEDGE ASSESSMENT
+              </div>
 
-            <h2 className="mobile-text-hero" style={{ fontWeight: 800, color: '#FFFFFF', lineHeight: 1.1, marginBottom: '1.5rem', letterSpacing: '-0.02em' }}>
-              Are You Unscammable? Put Your Instincts to the Test
-            </h2>
+              <h2 className="mobile-text-hero" style={{ fontWeight: 800, color: '#FFFFFF', lineHeight: 1.1, marginBottom: '1.5rem', letterSpacing: '-0.02em' }}>
+                Are You Unscammable? Put Your Instincts to the Test
+              </h2>
 
-            <p style={{ color: '#A3A3A3', fontSize: '1.1rem', lineHeight: 1.6, marginBottom: '3rem', maxWidth: '500px', margin: '0 auto 3rem' }}>
-              Take our 2-minute "Sentinel Quiz" to see how well you can distinguish between a sophisticated attack and a legitimate message.
-            </p>
+              <p style={{ color: '#A3A3A3', fontSize: '1.1rem', lineHeight: 1.6, marginBottom: '3rem', maxWidth: '500px', margin: '0 auto 3rem' }}>
+                Take our dynamic AI "Sentinel Quiz" to see how well you can distinguish between a sophisticated attack and a legitimate message.
+              </p>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.5rem' }}>
-              <button style={{ background: '#FF6B00', color: '#FFFFFF', border: 'none', padding: '1.2rem 2.5rem', borderRadius: '12px', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 4px 20px rgba(255,107,0,0.4)', transition: 'transform 0.2s' }}>
-                Start Quiz Now
-              </button>
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', marginLeft: '0.5rem' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#333', border: '2px solid #111', marginLeft: '-10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Shield size={12} color="#888"/></div>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#444', border: '2px solid #111', marginLeft: '-10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Eye size={12} color="#AAA"/></div>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#555', border: '2px solid #111', marginLeft: '-10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><PlayCircle size={12} color="#CCC"/></div>
-                </div>
-                <div style={{ color: '#888', fontSize: '0.8rem', fontWeight: 600 }}>
-                  People tested today
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+                <button onClick={startQuiz} style={{ background: '#FF6B00', color: '#FFFFFF', border: 'none', padding: '1.2rem 2.5rem', borderRadius: '12px', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 4px 20px rgba(255,107,0,0.4)', transition: 'all 0.2s' }}>
+                  Start Quiz Now
+                </button>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', marginLeft: '0.5rem' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#333', border: '2px solid #111', marginLeft: '-10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Shield size={12} color="#888"/></div>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#444', border: '2px solid #111', marginLeft: '-10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Eye size={12} color="#AAA"/></div>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#555', border: '2px solid #111', marginLeft: '-10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><PlayCircle size={12} color="#CCC"/></div>
+                  </div>
+                  <div style={{ color: '#888', fontSize: '0.8rem', fontWeight: 600 }}>
+                    People tested today
+                  </div>
                 </div>
               </div>
             </div>
-            
-          </div>
+          ) : (
+            <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: '650px', margin: '0 auto', textAlign: 'left' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '1px solid #333', paddingBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ background: 'rgba(255, 107, 0, 0.1)', color: '#FF6B00', border: '1px solid rgba(255, 107, 0, 0.2)', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.05em' }}>
+                     AI SCAM ARENA
+                  </div>
+                  {isLoadingScenario && <span style={{ color: '#FF6B00', fontSize: '0.8rem', animation: 'pulse 1s infinite' }}>• Loading...</span>}
+                </div>
+                <div style={{ color: '#FFF', fontSize: '0.9rem', fontWeight: 700 }}>
+                  Score: <span style={{ color: '#FF6B00' }}>{score.correct}/{score.total}</span> ({score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0}%)
+                </div>
+              </div>
+
+              {isLoadingScenario ? (
+                <div style={{ height: '300px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '1rem', color: '#888' }}>
+                  <div style={{ width: '40px', height: '40px', border: '4px solid #333', borderTop: '4px solid #FF6B00', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                  <p>AI is drafting a realistic test scenario...</p>
+                </div>
+              ) : currentScenario ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {/* Phone Simulator Display */}
+                  <div style={{ background: '#1A1A1A', border: '1px solid #333', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
+                    <div style={{ background: '#262626', padding: '0.8rem 1.25rem', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FF6B00' }} />
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#A3A3A3', letterSpacing: '0.05em' }}>
+                          INCOMING {currentScenario.type?.toUpperCase()}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: '#666', fontFamily: 'monospace' }}>SECURE LINE</span>
+                    </div>
+
+                    <div style={{ padding: '1.5rem', background: '#0F0F0F' }}>
+                      <p style={{ color: '#FFF', fontSize: '1rem', lineHeight: 1.6, margin: 0, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+                        {currentScenario.content}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  {!hasAnswered ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <button 
+                        onClick={() => handleAnswer('scam')}
+                        style={{ background: '#EF4444', color: '#FFF', border: 'none', padding: '1.1rem', borderRadius: '10px', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', transition: 'background 0.2s' }}
+                      >
+                        🚨 REPORT AS SCAM
+                      </button>
+                      <button 
+                        onClick={() => handleAnswer('safe')}
+                        style={{ background: '#10B981', color: '#FFF', border: 'none', padding: '1.1rem', borderRadius: '10px', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', transition: 'background 0.2s' }}
+                      >
+                        ✅ MARK AS SAFE
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                      {/* Feedback Panel */}
+                      {(() => {
+                        const isCorrect = (selectedAnswer === 'scam') === currentScenario.isScam;
+                        return (
+                          <div style={{ background: isCorrect ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)', border: `1px solid ${isCorrect ? '#10B981' : '#EF4444'}`, borderRadius: '14px', padding: '1.5rem' }}>
+                            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.2rem', fontWeight: 800, color: isCorrect ? '#10B981' : '#EF4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              {isCorrect ? '✅ CORRECT DECISION' : '❌ INCORRECT DECISION'}
+                            </h3>
+                            <p style={{ color: '#D4D4D4', fontSize: '0.9rem', lineHeight: 1.5, margin: '0 0 1rem' }}>
+                              This message was actually **{currentScenario.isScam ? `a SCAM (${currentScenario.scamType})` : 'SAFE & LEGITIMATE'}**.
+                            </p>
+                            
+                            <p style={{ color: '#A3A3A3', fontSize: '0.85rem', lineHeight: 1.5, margin: '0 0 1rem', fontStyle: 'italic' }}>
+                              {currentScenario.explanation}
+                            </p>
+
+                            {currentScenario.isScam && currentScenario.redFlags?.length > 0 && (
+                              <div>
+                                <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#EF4444', letterSpacing: '0.06em', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Detected Red Flags</div>
+                                <ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+                                  {currentScenario.redFlags.map((flag, idx) => (
+                                    <li key={idx} style={{ color: '#D4D4D4', fontSize: '0.82rem', marginBottom: '0.25rem' }}>{flag}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Navigation buttons */}
+                      <div style={{ display: 'flex', gap: '1rem' }}>
+                        <button 
+                          onClick={loadNewScenario}
+                          style={{ flex: 1, background: '#FF6B00', color: '#FFFFFF', border: 'none', padding: '1.1rem', borderRadius: '10px', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(255,107,0,0.3)' }}
+                        >
+                          NEXT CHALLENGE ➔
+                        </button>
+                        <button 
+                          onClick={resetQuiz}
+                          style={{ background: '#333', color: '#FFF', border: 'none', padding: '1.1rem 1.5rem', borderRadius: '10px', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer' }}
+                        >
+                          EXIT ARENA
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
 

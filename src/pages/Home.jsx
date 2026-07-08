@@ -1,90 +1,191 @@
 import { useState } from 'react';
-import { Shield, Search, Lock, Zap, Clock, AlertTriangle, ShieldCheck, Play, ArrowRight, Activity, Mail, MessageSquare, Globe, Hash } from 'lucide-react';
+import { Shield, Search, Lock, Zap, Clock, AlertTriangle, ShieldCheck, Play, ArrowRight, Activity, Mail, MessageSquare, Globe, Hash, Upload, X, Image } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { dbService } from '../lib/db';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('SMS');
   const [scanContent, setScanContent] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const navigate = useNavigate();
 
   const [isScanning, setIsScanning] = useState(false);
 
- const handleScan = async (e) => {
-  e.preventDefault();
-
-  if (!scanContent.trim() || isScanning) return;
-
-  setIsScanning(true);
-
-  try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/scan`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message: scanContent }),
+  const convertFileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
     });
+  };
 
-    const data = await response.json(); // ✅ always parse
+  const handleFileSelect = (file) => {
+    setSelectedFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+  };
 
-    const resultText = data.result || "";
+  const handleScan = async (e) => {
+    e.preventDefault();
 
-    const probabilityMatch = resultText.match(/Scam Probability:\s*(\d+)%/i);
-    const riskMatch = resultText.match(/Risk Level:\s*(Low|Medium|High)/i);
-    const typeMatch = resultText.match(/Scam Type:\s*(.*)/i);
-    const explanationMatch = resultText.match(/Explanation:\s*(.*)/i);
+    if (activeTab === 'Screenshot') {
+      if (!selectedFile || isScanning) return;
 
-    const indicatorsMatch = resultText.match(/Indicators:\s*([\s\S]*)/i);
+      setIsScanning(true);
 
-    let indicators = [];
-    if (indicatorsMatch && indicatorsMatch[1]) {
-      indicators = indicatorsMatch[1]
-        .split("\n")
-        .map((line) => line.replace(/^-\s*/, "").trim())
-        .filter((line) => line.length > 0);
+      try {
+        const base64Data = await convertFileToBase64(selectedFile);
+        const base64String = base64Data.split(',')[1];
+
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/scan-image`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            imageBase64: base64String,
+            mimeType: selectedFile.type
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to scan image');
+        }
+
+        const data = await response.json();
+        const resultText = data.result || "";
+
+        const probabilityMatch = resultText.match(/Scam Probability:\s*(\d+)%/i);
+        const riskMatch = resultText.match(/Risk Level:\s*(Low|Medium|High)/i);
+        const typeMatch = resultText.match(/Scam Type:\s*(.*)/i);
+        const explanationMatch = resultText.match(/Explanation:\s*(.*)/i);
+
+        const indicatorsMatch = resultText.match(/Indicators:\s*([\s\S]*)/i);
+
+        let indicators = [];
+        if (indicatorsMatch && indicatorsMatch[1]) {
+          indicators = indicatorsMatch[1]
+            .split("\n")
+            .map((line) => line.replace(/^-\s*/, "").trim())
+            .filter((line) => line.length > 0);
+        }
+
+        const parsedResult = {
+          probability: probabilityMatch ? parseInt(probabilityMatch[1]) : 50,
+          riskLevel: riskMatch ? riskMatch[1] : "Medium",
+          scamType: typeMatch ? typeMatch[1].trim() : "Unknown",
+          analysis: explanationMatch ? explanationMatch[1].trim() : "Fallback analysis",
+          indicators,
+          recommendations: [],
+        };
+
+        await dbService.saveScanResult({
+          contentAnalyzed: `[Uploaded Screenshot: ${selectedFile.name}]`,
+          ...parsedResult,
+        });
+
+        navigate("/scan", {
+          state: {
+            contentToScan: `[Uploaded Screenshot: ${selectedFile.name}]`,
+            platformChannel: activeTab,
+            initialResult: parsedResult,
+            uploadedImage: previewUrl
+          },
+        });
+      } catch (error) {
+        console.error("Screenshot Scan Error:", error);
+        navigate("/scan", {
+          state: {
+            contentToScan: `[Uploaded Screenshot: ${selectedFile.name}]`,
+            platformChannel: activeTab,
+            initialResult: {
+              probability: 0,
+              riskLevel: "Error",
+              analysis: "⚠️ Image analysis failed. Try again.",
+              indicators: [],
+            },
+          },
+        });
+      } finally {
+        setIsScanning(false);
+      }
+      return;
     }
 
-    const parsedResult = {
-      probability: probabilityMatch ? parseInt(probabilityMatch[1]) : 50,
-      riskLevel: riskMatch ? riskMatch[1] : "Medium",
-      scamType: typeMatch ? typeMatch[1].trim() : "Unknown",
-      analysis: explanationMatch ? explanationMatch[1].trim() : "Fallback analysis",
-      indicators,
-      recommendations: [],
-    };
+    if (!scanContent.trim() || isScanning) return;
 
-    await dbService.saveScanResult({
-      contentAnalyzed: scanContent,
-      ...parsedResult,
-    });
+    setIsScanning(true);
 
-    navigate("/scan", {
-      state: {
-        contentToScan: scanContent,
-        platformChannel: activeTab,
-        initialResult: parsedResult,
-      },
-    });
-  } catch (error) {
-    console.error("Frontend Error:", error);
-
-    navigate("/scan", {
-      state: {
-        contentToScan: scanContent,
-        platformChannel: activeTab,
-        initialResult: {
-          probability: 0,
-          riskLevel: "Error",
-          analysis: "⚠️ System failed. Try again.",
-          indicators: [],
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/scan`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      },
-    });
-  } finally {
-    setIsScanning(false);
-  }
-};
+        body: JSON.stringify({ message: scanContent }),
+      });
+
+      const data = await response.json(); // ✅ always parse
+
+      const resultText = data.result || "";
+
+      const probabilityMatch = resultText.match(/Scam Probability:\s*(\d+)%/i);
+      const riskMatch = resultText.match(/Risk Level:\s*(Low|Medium|High)/i);
+      const typeMatch = resultText.match(/Scam Type:\s*(.*)/i);
+      const explanationMatch = resultText.match(/Explanation:\s*(.*)/i);
+
+      const indicatorsMatch = resultText.match(/Indicators:\s*([\s\S]*)/i);
+
+      let indicators = [];
+      if (indicatorsMatch && indicatorsMatch[1]) {
+        indicators = indicatorsMatch[1]
+          .split("\n")
+          .map((line) => line.replace(/^-\s*/, "").trim())
+          .filter((line) => line.length > 0);
+      }
+
+      const parsedResult = {
+        probability: probabilityMatch ? parseInt(probabilityMatch[1]) : 50,
+        riskLevel: riskMatch ? riskMatch[1] : "Medium",
+        scamType: typeMatch ? typeMatch[1].trim() : "Unknown",
+        analysis: explanationMatch ? explanationMatch[1].trim() : "Fallback analysis",
+        indicators,
+        recommendations: [],
+      };
+
+      await dbService.saveScanResult({
+        contentAnalyzed: scanContent,
+        ...parsedResult,
+      });
+
+      navigate("/scan", {
+        state: {
+          contentToScan: scanContent,
+          platformChannel: activeTab,
+          initialResult: parsedResult,
+        },
+      });
+    } catch (error) {
+      console.error("Frontend Error:", error);
+
+      navigate("/scan", {
+        state: {
+          contentToScan: scanContent,
+          platformChannel: activeTab,
+          initialResult: {
+            probability: 0,
+            riskLevel: "Error",
+            analysis: "⚠️ System failed. Try again.",
+            indicators: [],
+          },
+        },
+      });
+    } finally {
+      setIsScanning(false);
+    }
+  };
 
   const handleSampleTest = (sampleText) => {
     setScanContent(sampleText);
@@ -148,15 +249,22 @@ export default function Home() {
         <div className="panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column' }}>
           
           <div style={{ display: 'flex', flexWrap: 'wrap', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
-            {['SMS', 'Email', 'Website', 'Social Media'].map(tab => (
+            {['SMS', 'Email', 'Website', 'Social Media', 'Screenshot'].map(tab => (
               <button 
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  // Clear files if we toggle away
+                  if (tab !== 'Screenshot') {
+                    setSelectedFile(null);
+                    setPreviewUrl(null);
+                  }
+                }}
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  padding: '1rem',
-                  fontSize: '0.95rem',
+                  padding: '1rem 0.5rem',
+                  fontSize: '0.9rem',
                   fontWeight: 600,
                   color: activeTab === tab ? 'var(--accent-primary)' : 'var(--text-muted)',
                   borderBottom: activeTab === tab ? '2px solid var(--accent-primary)' : '2px solid transparent',
@@ -165,36 +273,95 @@ export default function Home() {
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  gap: '0.5rem',
+                  gap: '0.4rem',
                   transition: 'all 0.2s ease'
                 }}
               >
-                {tab === 'SMS' && <MessageSquare size={16} />}
-                {tab === 'Email' && <Mail size={16} />}
-                {tab === 'Website' && <Globe size={16} />}
-                {tab === 'Social Media' && <Hash size={16} />}
-                {tab}
+                {tab === 'SMS' && <MessageSquare size={15} />}
+                {tab === 'Email' && <Mail size={15} />}
+                {tab === 'Website' && <Globe size={15} />}
+                {tab === 'Social Media' && <Hash size={15} />}
+                {tab === 'Screenshot' && <Image size={15} />}
+                <span>{tab}</span>
               </button>
             ))}
           </div>
 
           <form onSubmit={handleScan} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-            <textarea
-              className="input-field"
-              placeholder="Paste your suspicious message, email content, or URL here..."
-              rows={6}
-              value={scanContent}
-              onChange={(e) => setScanContent(e.target.value)}
-              style={{ 
-                resize: 'none', 
-                marginBottom: '1.5rem', 
-                flex: 1, 
-                fontSize: '1.1rem',
-                padding: '1.25rem',
-                border: '2px solid var(--border-color)',
-                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
-              }}
-            />
+            {activeTab === 'Screenshot' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, marginBottom: '1.5rem' }}>
+                {previewUrl ? (
+                  <div style={{ position: 'relative', width: '100%', height: '220px', border: '2px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#FAFAFA' }}>
+                    <img src={previewUrl} alt="Screenshot Preview" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
+                    <button 
+                      type="button" 
+                      onClick={() => { setSelectedFile(null); setPreviewUrl(null); }} 
+                      style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', color: '#FFF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div 
+                    onClick={() => document.getElementById('screenshot-upload-input').click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        handleFileSelect(e.dataTransfer.files[0]);
+                      }
+                    }}
+                    style={{ 
+                      border: '2px dashed var(--accent-primary)', 
+                      borderRadius: '12px', 
+                      padding: '3rem 2rem', 
+                      textAlign: 'center', 
+                      cursor: 'pointer', 
+                      background: 'rgba(255, 107, 0, 0.02)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '1rem',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <Upload size={36} color="var(--accent-primary)" />
+                    <div>
+                      <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '1.05rem', marginBottom: '0.25rem' }}>Upload Scam Screenshot</p>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Drag & drop an image here or click to browse (PNG, JPG, JPEG)</p>
+                    </div>
+                    <input 
+                      type="file" 
+                      id="screenshot-upload-input" 
+                      accept="image/*" 
+                      style={{ display: 'none' }} 
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          handleFileSelect(e.target.files[0]);
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <textarea
+                className="input-field"
+                placeholder="Paste your suspicious message, email content, or URL here..."
+                rows={6}
+                value={scanContent}
+                onChange={(e) => setScanContent(e.target.value)}
+                style={{ 
+                  resize: 'none', 
+                  marginBottom: '1.5rem', 
+                  flex: 1, 
+                  fontSize: '1.1rem',
+                  padding: '1.25rem',
+                  border: '2px solid var(--border-color)',
+                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
+                }}
+              />
+            )}
             
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 500 }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Lock size={14} /> No data stored</span>
@@ -202,9 +369,9 @@ export default function Home() {
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Zap size={14} /> Real-time analysis</span>
             </div>
 
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1.25rem', fontSize: '1.1rem', fontWeight: 700, borderRadius: '8px', opacity: isScanning ? 0.7 : 1, transition: 'all 0.3s ease' }} disabled={isScanning}>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1.25rem', fontSize: '1.1rem', fontWeight: 700, borderRadius: '8px', opacity: isScanning ? 0.7 : 1, transition: 'all 0.3s ease' }} disabled={isScanning || (activeTab === 'Screenshot' && !selectedFile)}>
               {isScanning ? (
-                <>🔍 Analyzing message...</>
+                <>🔍 Analyzing content...</>
               ) : (
                 <><Search size={20} /> SCAN FOR SCAMS</>
               )}

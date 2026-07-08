@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { Shield, Home, Search, BarChart3, AlertOctagon, BookOpen, Info, Menu, X, User } from 'lucide-react';
 import AuthModal from './AuthModal';
+import Chatbot from './Chatbot';
 
 
 export default function Layout() {
@@ -123,6 +124,9 @@ export default function Layout() {
           onSuccess={() => setIsAuthenticated(true)}
         />
       )}
+
+      {/* Floating Chatbot Assistant */}
+      <Chatbot />
 
     </div>
   );

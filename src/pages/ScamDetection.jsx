@@ -12,6 +12,7 @@ export default function ScamDetection() {
   const initialContent = location.state?.contentToScan || '';
   const initialPlatform = location.state?.platformChannel || 'Unknown';
   const result = location.state?.initialResult || null;
+  const uploadedImage = location.state?.uploadedImage || null;
 
   const probability = result?.probability ?? 0;
   const circumference = 2 * Math.PI * 54;
@@ -282,10 +283,15 @@ export default function ScamDetection() {
               </div>
             </div>
 
-            <div style={{ background: '#111', margin: '1.25rem 1.25rem 0', borderRadius: '10px', padding: '1.25rem', flex: 1 }}>
+            <div style={{ background: '#111', margin: '1.25rem 1.25rem 0', borderRadius: '10px', padding: '1.25rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div style={{ color: '#4B5563', fontSize: '0.75rem', fontFamily: 'monospace', marginBottom: '0.75rem' }}>
                 // Raw Metadata: {initialPlatform.toUpperCase()}_INCOMING
               </div>
+              {uploadedImage ? (
+                <div style={{ width: '100%', height: '180px', borderRadius: '6px', overflow: 'hidden', background: '#222', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '1rem', border: '1px solid #333' }}>
+                  <img src={uploadedImage} alt="Scanned Screenshot Source" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
+                </div>
+              ) : null}
               <div style={{ color: '#D1D5DB', fontSize: '0.83rem', fontFamily: 'monospace', lineHeight: 1.65, wordBreak: 'break-all' }}>
                 &ldquo;{highlightIndicators(initialContent || 'No content provided.', result?.indicators)}&rdquo;
               </div>
